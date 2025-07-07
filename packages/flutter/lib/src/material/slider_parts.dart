@@ -836,20 +836,21 @@ class DropSliderValueIndicatorShape extends SliderComponentShape {
 class _DropSliderValueIndicatorPathPainter {
   const _DropSliderValueIndicatorPathPainter();
 
-  static const double _triangleHeight = 10.0;
-  static const double _labelPadding = 8.0;
-  static const double _preferredHeight = 32.0;
+  static const double _triangleHeight = 8.0;
+  static const double _labelPadding = 16.0;
+  static const double _minHeight = 32.0;
   static const double _minLabelWidth = 20.0;
-  static const double _minRectHeight = 28.0;
-  static const double _rectYOffset = 6.0;
   static const double _bottomTipYOffset = 16.0;
-  static const double _preferredHalfHeight = _preferredHeight / 2;
   static const double _upperRectRadius = 4;
 
   Size getPreferredSize(TextPainter labelPainter, double textScaleFactor) {
     final double width =
         math.max(_minLabelWidth, labelPainter.width) + _labelPadding * 2 * textScaleFactor;
-    return Size(width, _preferredHeight * textScaleFactor);
+    final double height = math.max(
+      _minHeight,
+      labelPainter.height + (_labelPadding * 2 * textScaleFactor),
+    );
+    return Size(width, height);
   }
 
   double getHorizontalShift({
@@ -889,17 +890,8 @@ class _DropSliderValueIndicatorPathPainter {
   }
 
   double _upperRectangleWidth(TextPainter labelPainter, double scale) {
-    final double unscaledWidth = math.max(_minLabelWidth, labelPainter.width) + _labelPadding;
+    final double unscaledWidth = math.max(_minLabelWidth, labelPainter.width) + (_labelPadding * 2);
     return unscaledWidth * scale;
-  }
-
-  BorderRadius _adjustBorderRadius(Rect rect) {
-    const double rectness = 0.0;
-    return BorderRadius.lerp(
-      BorderRadius.circular(_upperRectRadius),
-      BorderRadius.all(Radius.circular(rect.shortestSide / 2.0)),
-      1.0 - rectness,
-    )!;
   }
 
   void paint({
@@ -927,11 +919,18 @@ class _DropSliderValueIndicatorPathPainter {
       sizeWithOverflow: sizeWithOverflow,
       scale: scale,
     );
+
+    // Calculate the actual height needed for the texts in label.
+    final double rectHeight = math.max(
+      _minHeight,
+      labelPainter.height + (_labelPadding * 2 * textScaleFactor),
+    );
+
     final Rect upperRect = Rect.fromLTWH(
       -rectangleWidth / 2 + horizontalShift,
-      -_rectYOffset - _minRectHeight,
+      -_triangleHeight - rectHeight,
       rectangleWidth,
-      _minRectHeight,
+      rectHeight,
     );
 
     final Paint fillPaint = Paint()..color = backgroundPaintColor;
@@ -940,16 +939,19 @@ class _DropSliderValueIndicatorPathPainter {
     canvas.translate(center.dx, center.dy - _bottomTipYOffset);
     canvas.scale(scale, scale);
 
-    final BorderRadius adjustedBorderRadius = _adjustBorderRadius(upperRect);
-    final RRect borderRect = adjustedBorderRadius
-        .resolve(labelPainter.textDirection)
-        .toRRect(upperRect);
+    // Create the path for the value indicator
     final Path trianglePath =
         Path()
           ..lineTo(-_triangleHeight, -_triangleHeight)
           ..lineTo(_triangleHeight, -_triangleHeight)
           ..close();
-    trianglePath.addRRect(borderRect);
+
+    // Add the rounded rectangle for the label
+    final RRect upperRRect = RRect.fromRectAndRadius(
+      upperRect,
+      const Radius.circular(_upperRectRadius),
+    );
+    trianglePath.addRRect(upperRRect);
 
     if (strokePaintColor != null) {
       final Paint strokePaint =
@@ -962,12 +964,11 @@ class _DropSliderValueIndicatorPathPainter {
 
     canvas.drawPath(trianglePath, fillPaint);
 
-    // The label text is centered within the value indicator.
-    final double bottomTipToUpperRectTranslateY = -_preferredHalfHeight / 2 - upperRect.height;
-    canvas.translate(0, bottomTipToUpperRectTranslateY);
-    final Offset boxCenter = Offset(horizontalShift, upperRect.height / 1.75);
-    final Offset halfLabelPainterOffset = Offset(labelPainter.width / 2, labelPainter.height / 2);
-    final Offset labelOffset = boxCenter - halfLabelPainterOffset;
+    // Draw the label, similar to how it is done in upperRect but add _labelPadding
+    final Offset labelOffset = Offset(
+      -labelPainter.width / 2 + horizontalShift,
+      -_triangleHeight - rectHeight + _labelPadding,
+    );
     labelPainter.paint(canvas, labelOffset);
     canvas.restore();
   }
@@ -1320,17 +1321,20 @@ class RoundedRectSliderValueIndicatorShape extends SliderComponentShape {
 class _RoundedRectSliderValueIndicatorPathPainter {
   const _RoundedRectSliderValueIndicatorPathPainter();
 
-  static const double _labelPadding = 10.0;
-  static const double _preferredHeight = 32.0;
+  static const double _labelPadding = 16.0;
+  static const double _minHeight = 32.0;
   static const double _minLabelWidth = 16.0;
-  static const double _rectYOffset = 10.0;
   static const double _bottomTipYOffset = 16.0;
-  static const double _preferredHalfHeight = _preferredHeight / 2;
+  static const double _minRectRadius = 4.0;
 
   Size getPreferredSize(TextPainter labelPainter, double textScaleFactor) {
     final double width =
-        math.max(_minLabelWidth, labelPainter.width) + (_labelPadding * 2) * textScaleFactor;
-    return Size(width, _preferredHeight * textScaleFactor);
+        math.max(_minLabelWidth, labelPainter.width) + _labelPadding * 2 * textScaleFactor;
+    final double height = math.max(
+      _minHeight,
+      labelPainter.height + (_labelPadding * 2 * textScaleFactor),
+    );
+    return Size(width, height);
   }
 
   double getHorizontalShift({
@@ -1401,14 +1405,17 @@ class _RoundedRectSliderValueIndicatorPathPainter {
       scale: scale,
     );
 
+    final Paint fillPaint = Paint()..color = backgroundPaintColor;
+    final double verticalPadding = _labelPadding * textScaleFactor;
+    final double rectHeight = labelPainter.height + verticalPadding * 2;
+
+    // The rectangle which is above the thumb, with no triangle)
     final Rect upperRect = Rect.fromLTWH(
       -rectangleWidth / 2 + horizontalShift,
-      -_rectYOffset - _preferredHeight,
+      -_bottomTipYOffset - rectHeight,
       rectangleWidth,
-      _preferredHeight,
+      rectHeight,
     );
-
-    final Paint fillPaint = Paint()..color = backgroundPaintColor;
 
     canvas.save();
     // Prepare the canvas for the base of the tooltip, which is relative to the
@@ -1416,7 +1423,10 @@ class _RoundedRectSliderValueIndicatorPathPainter {
     canvas.translate(center.dx, center.dy - _bottomTipYOffset);
     canvas.scale(scale, scale);
 
-    final RRect rrect = RRect.fromRectAndRadius(upperRect, Radius.circular(upperRect.height / 2));
+    final double cornerRadius = math.max(rectHeight / 2, _minRectRadius);
+    final RRect rrect = RRect.fromRectAndRadius(upperRect, Radius.circular(cornerRadius));
+    canvas.drawRRect(rrect, fillPaint);
+
     if (strokePaintColor != null) {
       final Paint strokePaint =
           Paint()
@@ -1426,14 +1436,11 @@ class _RoundedRectSliderValueIndicatorPathPainter {
       canvas.drawRRect(rrect, strokePaint);
     }
 
-    canvas.drawRRect(rrect, fillPaint);
-
-    // The label text is centered within the value indicator.
-    final double bottomTipToUpperRectTranslateY = -_preferredHalfHeight / 2 - upperRect.height;
-    canvas.translate(0, bottomTipToUpperRectTranslateY);
-    final Offset boxCenter = Offset(horizontalShift, upperRect.height / 2.3);
-    final Offset halfLabelPainterOffset = Offset(labelPainter.width / 2, labelPainter.height / 2);
-    final Offset labelOffset = boxCenter - halfLabelPainterOffset;
+    // Draw the label, centered in the rectangle
+    final Offset labelOffset = Offset(
+      rrect.left + (rrect.width - labelPainter.width) / 2,
+      rrect.top + (rrect.height - labelPainter.height) / 2,
+    );
     labelPainter.paint(canvas, labelOffset);
     canvas.restore();
   }
