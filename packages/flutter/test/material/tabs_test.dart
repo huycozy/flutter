@@ -3183,6 +3183,51 @@ void main() {
     );
   });
 
+  // Regression test for https://github.com/flutter/flutter/issues/171951
+  testWidgets('TabBar height with custom indicator vs default indicator', (
+    WidgetTester tester,
+  ) async {
+    const double indicatorWeight = 2.0; // default indicator weight
+    const Decoration customIndicator = BoxDecoration(color: Colors.red);
+    final List<Widget> tabs = <Widget>[const Tab(text: 'Tab 1'), const Tab(text: 'Tab 2')];
+
+    final TabController controller = createTabController(
+      vsync: const TestVSync(),
+      length: tabs.length,
+    );
+
+    // Test with default indicator (no custom indicator)
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          appBar: AppBar(
+            bottom: TabBar(controller: controller, tabs: tabs),
+          ),
+        ),
+      ),
+    );
+
+    RenderBox tabBarBox = tester.firstRenderObject<RenderBox>(find.byType(TabBar));
+    const double expectedHeightWithDefaultIndicator =
+        46.0 + indicatorWeight; // _kTabHeight + indicatorWeight
+    expect(tabBarBox.size.height, expectedHeightWithDefaultIndicator);
+
+    // Test with custom indicator
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          appBar: AppBar(
+            bottom: TabBar(controller: controller, indicator: customIndicator, tabs: tabs),
+          ),
+        ),
+      ),
+    );
+
+    tabBarBox = tester.firstRenderObject<RenderBox>(find.byType(TabBar));
+    const double expectedHeightWithCustomIndicator = 46.0; // _kTabHeight only, no indicatorWeight
+    expect(tabBarBox.size.height, expectedHeightWithCustomIndicator);
+  });
+
   testWidgets('TabBar with custom indicator and indicatorPadding(LTR)', (
     WidgetTester tester,
   ) async {
@@ -3218,10 +3263,9 @@ void main() {
     );
 
     final RenderBox tabBarBox = tester.firstRenderObject<RenderBox>(find.byType(TabBar));
-    expect(tabBarBox.size.height, 48.0);
-    // 48 = _kTabHeight(46) + indicatorWeight(2.0) ~default
+    expect(tabBarBox.size.height, 46.0); // No indicatorWeight since custom indicator is used
 
-    const double indicatorBottom = 48.0 - padBottom;
+    const double indicatorBottom = 46.0 - padBottom; // tabBarBox.size.height is now 46.0
     const double indicatorTop = padTop;
     double indicatorLeft = padLeft;
     double indicatorRight = 200.0 - padRight;
@@ -3286,10 +3330,12 @@ void main() {
     );
 
     final RenderBox tabBarBox = tester.firstRenderObject<RenderBox>(find.byType(TabBar));
-    expect(tabBarBox.size.height, 48.0);
-    // 48 = _kTabHeight(46) + indicatorWeight(2.0) ~default
+    expect(
+      tabBarBox.size.height,
+      46.0,
+    ); // 46 = _kTabHeight(46) + 0.0. No indicatorWeight since custom indicator is used
     expect(tabBarBox.size.width, 800.0);
-    const double indicatorBottom = 48.0 - padBottom;
+    const double indicatorBottom = 46.0 - padBottom;
     const double indicatorTop = padTop;
     double indicatorLeft = 600.0 + padLeft;
     double indicatorRight = 800.0 - padRight;
@@ -3332,7 +3378,6 @@ void main() {
     const double padStart = 8.0;
     const double padEnd = 4.0;
     const Decoration indicator = BoxDecoration(color: indicatorColor);
-    const double indicatorWeight = 2.0; // the default
 
     final TabController controller = createTabController(
       vsync: const TestVSync(),
@@ -3361,13 +3406,14 @@ void main() {
     );
 
     final RenderBox tabBarBox = tester.firstRenderObject<RenderBox>(find.byType(TabBar));
-    const double tabBarHeight = 50.0 + indicatorWeight; // 50 = max tab height
+    const double tabBarHeight = 50.0; // No indicatorWeight since custom indicator is used
     expect(tabBarBox.size.height, tabBarHeight);
 
     // Tab0 width = 130, height = 30
     double tabLeft = kTabLabelPadding.left;
     double tabRight = tabLeft + 130.0;
-    double tabTop = (tabBarHeight - indicatorWeight - 30.0) / 2.0;
+    double tabTop =
+        (tabBarHeight - 0.0 - 30.0) / 2.0; // No indicatorWeight since custom indicator is used
     double tabBottom = tabTop + 30.0;
     Rect tabRect = Rect.fromLTRB(tabLeft, tabTop, tabRight, tabBottom);
     expect(tester.getRect(find.byKey(tabs[0].key!)), tabRect);
@@ -3375,7 +3421,7 @@ void main() {
     // Tab1 width = 140, height = 40
     tabLeft = tabRight + kTabLabelPadding.right + kTabLabelPadding.left;
     tabRight = tabLeft + 140.0;
-    tabTop = (tabBarHeight - indicatorWeight - 40.0) / 2.0;
+    tabTop = (tabBarHeight - 0.0 - 40.0) / 2.0; // No indicatorWeight since custom indicator is used
     tabBottom = tabTop + 40.0;
     tabRect = Rect.fromLTRB(tabLeft, tabTop, tabRight, tabBottom);
     expect(tester.getRect(find.byKey(tabs[1].key!)), tabRect);
@@ -3383,7 +3429,7 @@ void main() {
     // Tab2 width = 150, height = 50
     tabLeft = tabRight + kTabLabelPadding.right + kTabLabelPadding.left;
     tabRight = tabLeft + 150.0;
-    tabTop = (tabBarHeight - indicatorWeight - 50.0) / 2.0;
+    tabTop = (tabBarHeight - 0.0 - 50.0) / 2.0; // No indicatorWeight since custom indicator is used
     tabBottom = tabTop + 50.0;
     tabRect = Rect.fromLTRB(tabLeft, tabTop, tabRight, tabBottom);
     expect(tester.getRect(find.byKey(tabs[2].key!)), tabRect);
@@ -3416,7 +3462,6 @@ void main() {
     const double padStart = 8.0;
     const double padEnd = 4.0;
     const Decoration indicator = BoxDecoration(color: indicatorColor);
-    const double indicatorWeight = 2.0; // the default
 
     final TabController controller = createTabController(
       vsync: const TestVSync(),
@@ -3446,13 +3491,15 @@ void main() {
     );
 
     final RenderBox tabBarBox = tester.firstRenderObject<RenderBox>(find.byType(TabBar));
-    const double tabBarHeight = 50.0 + indicatorWeight; // 50 = max tab height
+    const double tabBarHeight =
+        50.0; // = 50(max tab height) +  0.0 .No indicatorWeight since custom indicator is used
     expect(tabBarBox.size.height, tabBarHeight);
 
     // Tab2 width = 150, height = 50
     double tabLeft = kTabLabelPadding.left;
     double tabRight = tabLeft + 150.0;
-    double tabTop = (tabBarHeight - indicatorWeight - 50.0) / 2.0;
+    double tabTop =
+        (tabBarHeight - 0.0 - 50.0) / 2.0; // No indicatorWeight since custom indicator is used
     double tabBottom = tabTop + 50.0;
     Rect tabRect = Rect.fromLTRB(tabLeft, tabTop, tabRight, tabBottom);
     expect(tester.getRect(find.byKey(tabs[2].key!)), tabRect);
@@ -3460,7 +3507,7 @@ void main() {
     // Tab1 width = 140, height = 40
     tabLeft = tabRight + kTabLabelPadding.right + kTabLabelPadding.left;
     tabRight = tabLeft + 140.0;
-    tabTop = (tabBarHeight - indicatorWeight - 40.0) / 2.0;
+    tabTop = (tabBarHeight - 0.0 - 40.0) / 2.0; // No indicatorWeight since custom indicator is used
     tabBottom = tabTop + 40.0;
     tabRect = Rect.fromLTRB(tabLeft, tabTop, tabRight, tabBottom);
     expect(tester.getRect(find.byKey(tabs[1].key!)), tabRect);
@@ -3468,7 +3515,7 @@ void main() {
     // Tab0 width = 130, height = 30
     tabLeft = tabRight + kTabLabelPadding.right + kTabLabelPadding.left;
     tabRight = tabLeft + 130.0;
-    tabTop = (tabBarHeight - indicatorWeight - 30.0) / 2.0;
+    tabTop = (tabBarHeight - 0.0 - 30.0) / 2.0; // No indicatorWeight since custom indicator is used
     tabBottom = tabTop + 30.0;
     tabRect = Rect.fromLTRB(tabLeft, tabTop, tabRight, tabBottom);
     expect(tester.getRect(find.byKey(tabs[0].key!)), tabRect);
@@ -7458,7 +7505,10 @@ void main() {
       final RenderBox tabBarBox = tester.firstRenderObject<RenderBox>(find.byType(TabBar));
       final double tabBarHeight =
           50.0 + indicatorWeight + padding.top + padding.bottom; // 50 = max tab height
-      expect(tabBarBox.size.height, tabBarHeight);
+      expect(
+        tabBarBox.size.height,
+        tabBarHeight,
+      ); // // No indicatorWeight since custom indicator is used
 
       // Tab0 width = 130, height = 30
       double tabLeft = padding.left;
@@ -7602,7 +7652,7 @@ void main() {
 
     ImageConfiguration config = decoration.painters.last.lastConfiguration!;
     expect(config.size?.width, closeTo(14.1, 0.1));
-    expect(config.size?.height, equals(48.0));
+    expect(config.size?.height, equals(46.0)); // 46.0 = _kTabHeight since custom indicator is used
     expect(config.textDirection, TextDirection.ltr);
     expect(config.devicePixelRatio, 1.0);
 
@@ -7610,7 +7660,7 @@ void main() {
 
     config = decoration.painters.last.lastConfiguration!;
     expect(config.size?.width, closeTo(14.1, 0.1));
-    expect(config.size?.height, equals(48.0));
+    expect(config.size?.height, equals(46.0)); // 46.0 = _kTabHeight since custom indicator is used
     expect(config.textDirection, TextDirection.rtl);
     expect(config.devicePixelRatio, 2.33);
   });

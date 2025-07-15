@@ -1415,7 +1415,10 @@ class TabBar extends StatefulWidget implements PreferredSizeWidget {
         maxHeight = math.max(itemHeight, maxHeight);
       }
     }
-    return Size.fromHeight(maxHeight + indicatorWeight);
+    // Only add indicatorWeight when not using a custom indicator,
+    // as we can't access context here to check TabBarTheme.
+    final double indicatorHeight = (indicator != null) ? 0.0 : indicatorWeight;
+    return Size.fromHeight(maxHeight + indicatorHeight);
   }
 
   /// Returns whether the [TabBar] contains a tab with both text and icon.
@@ -1535,6 +1538,12 @@ class _TabBarState extends State<TabBar> {
         color: color,
       ),
     );
+  }
+
+  /// Returns true if a custom indicator is provided either directly or via TabBarTheme.
+  bool get _hasCustomIndicator {
+    final TabBarThemeData tabBarTheme = TabBarTheme.of(context);
+    return widget.indicator != null || tabBarTheme.indicator != null;
   }
 
   // If the TabBar is rebuilt with a new tab controller, the caller should
@@ -1837,7 +1846,10 @@ class _TabBarState extends State<TabBar> {
     if (_controller!.length == 0) {
       return LimitedBox(
         maxWidth: 0.0,
-        child: SizedBox(width: double.infinity, height: _kTabHeight + widget.indicatorWeight),
+        child: SizedBox(
+          width: double.infinity,
+          height: _kTabHeight + (_hasCustomIndicator ? 0.0 : widget.indicatorWeight),
+        ),
       );
     }
 
@@ -1960,7 +1972,7 @@ class _TabBarState extends State<TabBar> {
             tabBarTheme.splashBorderRadius ??
             _defaults.splashBorderRadius,
         child: Padding(
-          padding: EdgeInsets.only(bottom: widget.indicatorWeight),
+          padding: EdgeInsets.only(bottom: _hasCustomIndicator ? 0.0 : widget.indicatorWeight),
           child: Stack(
             children: <Widget>[
               wrappedTabs[index],
