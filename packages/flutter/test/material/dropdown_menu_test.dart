@@ -4877,6 +4877,101 @@ void main() {
     await tester.pump();
     expect(find.byType(MenuItemButton), findsWidgets);
   });
+
+  // Regression test for https://github.com/flutter/flutter/issues/172897
+  group('ListTile with DropdownMenu trailing widget should lose focus after '
+      'selecting a menu item on desktop', () {
+    Future<void> pumpListTileWithDropdownMenuOpened(WidgetTester tester) async {
+      int? selectedValue = 100;
+      final List<DropdownMenuEntry<int>> entries = <DropdownMenuEntry<int>>[
+        const DropdownMenuEntry<int>(value: 100, label: '100'),
+        const DropdownMenuEntry<int>(value: 200, label: '200'),
+        const DropdownMenuEntry<int>(value: 300, label: '300'),
+      ];
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Center(
+              child: Material(
+                child: ListTile(
+                  onTap: () {},
+                  tileColor: Colors.grey[200],
+                  hoverColor: Colors.grey[300],
+                  title: const Text('Title'),
+                  trailing: DropdownMenu<int>(
+                    initialSelection: selectedValue,
+                    onSelected: (int? value) {
+                      selectedValue = value;
+                    },
+                    dropdownMenuEntries: entries,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+
+      // Find the default trailing icon.
+      final Finder trailingIcon = find.widgetWithIcon(IconButton, Icons.arrow_drop_down).first;
+      expect(trailingIcon, findsOneWidget);
+
+      // Tap the trailingIcon to open the menu.
+      await tester.tap(trailingIcon);
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('be triggered by mouse click', (WidgetTester tester) async {
+      // When a DropdownMenu is used within ListTile's trailing widget,
+      // selecting a menu item by clicking on trailing button should clear focus
+      // to prevent the parent ListTile from showing focus highlight on desktop.
+      await pumpListTileWithDropdownMenuOpened(tester);
+
+      // Find and tap a menu item in the overlay.
+      final Finder menuItem200 = findMenuItemButton('200');
+      expect(menuItem200, findsOneWidget);
+      await tester.tap(menuItem200);
+      await tester.pumpAndSettle();
+
+      // Verify that focus does not reside in DropdownMenu widgets.
+      final FocusNode? primaryFocus = FocusManager.instance.primaryFocus;
+      if (primaryFocus != null) {
+        final Widget? focusedWidget = primaryFocus.context?.widget;
+        expect(focusedWidget, isNot(isA<TextField>()));
+        expect(focusedWidget, isNot(isA<IconButton>()));
+        expect(focusedWidget, isNot(isA<DropdownMenu<int>>()));
+      }
+    }, variant: TargetPlatformVariant.desktop());
+
+    testWidgets(
+      "be triggered by pressing Enter to complete editing in DropdownMenu's TextField",
+      (WidgetTester tester) async {
+        // When using Enter key to select an item in a DropdownMenu within
+        // ListTile's trailing widget, focus should be cleared to prevent parent
+        // ListTile from showing focus highlight.
+        await pumpListTileWithDropdownMenuOpened(tester);
+
+        // Press down arrow to select the second item.
+        await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
+        await tester.pump();
+
+        // Press Enter to select the second item.
+        await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+        await tester.pumpAndSettle();
+
+        // Verify that focus does not reside in DropdownMenu widgets.
+        final FocusNode? finalFocus = FocusManager.instance.primaryFocus;
+        if (finalFocus != null) {
+          final Widget? focusedWidget = finalFocus.context?.widget;
+          expect(focusedWidget, isNot(isA<TextField>()));
+          expect(focusedWidget, isNot(isA<IconButton>()));
+          expect(focusedWidget, isNot(isA<DropdownMenu<int>>()));
+        }
+      },
+      variant: TargetPlatformVariant.desktop(),
+    );
+  });
 }
 
 enum TestMenu {

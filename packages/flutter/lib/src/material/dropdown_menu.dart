@@ -944,6 +944,7 @@ class _DropdownMenuState<T extends Object> extends State<DropdownMenu<T>> {
                   if (widget.closeBehavior == DropdownMenuCloseBehavior.self) {
                     _controller.close();
                   }
+                  _unfocusNodes();
                 }
               : null,
           requestFocusOnHover: false,
@@ -1004,6 +1005,19 @@ class _DropdownMenuState<T extends Object> extends State<DropdownMenu<T>> {
     });
   }
 
+  void _unfocusNodes() {
+    // Unfocus nodes to prevent the parent widget from showing focus highlight
+    // in FocusHighlightMode.traditional (desktop platforms).
+    _trailingIconButtonFocusNode.unfocus();
+    _internalFocudeNode.unfocus();
+    if (widget.focusNode != null) {
+      widget.focusNode!.unfocus();
+    }
+
+    // Clear primary focus completely.
+    FocusManager.instance.primaryFocus?.unfocus();
+  }
+
   void handlePressed(MenuController controller, {bool focusForKeyboard = true}) {
     if (controller.isOpen) {
       currentHighlight = null;
@@ -1041,6 +1055,7 @@ class _DropdownMenuState<T extends Object> extends State<DropdownMenu<T>> {
       currentHighlight = null;
     }
     _controller.close();
+    _unfocusNodes();
   }
 
   @override
